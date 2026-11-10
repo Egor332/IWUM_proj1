@@ -12,6 +12,7 @@ This repository contains the Exploratory Data Analysis (EDA), leakage-safe corpo
 | **`test_holdout_set.csv`** | 599 rows $\times$ 172 cols | 36 defaults (6.01%) | 20% Sealed holdout test set for final unbiased benchmark |
 | **`selected_features.json`** | Metadata JSON | — | Feature lists: top 20 modeling features, 168 retained, 49 dropped |
 | **`eda_and_data_separation.ipynb`** | Notebook | — | Complete executable analysis from raw data to saved splits |
+| **`interpretable_model.ipynb`** | Notebook | — | Interpretable Scorecard & Decision Tree (XAI, metrics, stability) |
 
 ### Key Columns in `development_set.csv`:
 * **`default`**: Binary target (0 = healthy firm, 1 = bankrupt / default).
