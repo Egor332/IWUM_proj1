@@ -1,66 +1,57 @@
-# Corporate Default Prediction & Data Separation (`zbiór_4.csv`)
+# Przewidywanie defaultu firm — model interpretowalny vs black-box
 
-This repository contains the Exploratory Data Analysis (EDA), leakage-safe corporate partitioning, and feature preparation for corporate default prediction.
 
----
+## Struktura repozytorium
 
-## 1. Generated Partitions & Metadata
-
-| File | Shape | Default Count | Purpose |
-| :--- | :--- | :--- | :--- |
-| **`development_set.csv`** | 2,401 rows $\times$ 173 cols | 144 defaults (6.00%) | 80% Development partition with 5 inner CV folds |
-| **`test_holdout_set.csv`** | 599 rows $\times$ 172 cols | 36 defaults (6.01%) | 20% Sealed holdout test set for final unbiased benchmark |
-| **`selected_features.json`** | Metadata JSON | — | Feature lists: top 20 modeling features, 168 retained, 49 dropped |
-| **`eda_and_data_separation.ipynb`** | Notebook | — | Complete executable analysis from raw data to saved splits |
-| **`interpretable_model.ipynb`** | Notebook | — | Interpretable Scorecard & Decision Tree (XAI, metrics, stability) |
-
-### Key Columns in `development_set.csv`:
-* **`default`**: Binary target (0 = healthy firm, 1 = bankrupt / default).
-* **`cv_fold`**: Integer fold assignment (`0, 1, 2, 3, 4`).
-* **`company_group_id`**: Composite corporate identifier. All consecutive annual filings of the same company share the same ID and are strictly assigned to the same fold.
-
----
-
-## 2. How to Use the Fold Separations
-
-To ensure zero data leakage, iterate through the 5 cross-validation folds using the `cv_fold` column:
-
-```python
-import json
-import pandas as pd
-from sklearn.preprocessing import StandardScaler
-from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import roc_auc_score
-
-# 1. Load the development set and top feature list
-dev_df = pd.read_csv('development_set.csv')
-with open('selected_features.json', 'r') as f:
-    features = json.load(f)['top_selected_features']
-
-# 2. Iterate across the 5 cross-validation folds
-for fold in range(5):
-    # Training folds (4 folds ~ 1,920 rows)
-    train_split = dev_df[dev_df['cv_fold'] != fold]
-    X_train = train_split[features]
-    y_train = train_split['default']
-
-    # Validation fold (1 fold ~ 480 rows)
-    val_split = dev_df[dev_df['cv_fold'] == fold]
-    X_val = val_split[features]
-    y_val = val_split['default']
-
-    # Preprocessing (fitted strictly on training split)
-    scaler = StandardScaler().fit(X_train)
-    X_train_scaled = scaler.transform(X_train)
-    X_val_scaled = scaler.transform(X_val)
+```
+proj1/
+├── data/
+│   ├── zbiór_4.csv                  # surowe dane (3000 × 223)
+│   ├── development_set.csv          # zbiór deweloperski: 2401 wierszy, 144 defaulty, kolumna cv_fold (0–4)
+│   ├── test_holdout_set.csv         # odłożony zbiór testowy: 599 wierszy, 36 defaultów
+│   └── selected_features.json       # listy cech z etapu EDA (top 20, cechy zachowane i odrzucone)
+├── eda_and_data_separation.ipynb    # EDA, grupowanie firm, podział train/test i 5 foldów, IV/WoE
+├── interpretable_model.ipynb        # karta scoringowa WoE: trening, metryki, interpretacja,
+│                                    # stabilność, kalibracja, 4%, progi, ratingi; eksport do artifacts/
+├── black_box_analysis.ipynb         # XGBoost: strojenie, SHAP, PDP/ICE/ALE, LIME, kalibracja, 4%,
+│                                    # progi, ratingi, kontrfakty, porównanie z kartą scoringową
+├── MODEL_CARD.md                    # model card obu modeli: cel, dane, ograniczenia, ryzyka,
+│                                    # wyjaśnienia, kalibracja, plan monitoringu
+└── requirements.txt
 ```
 
 ---
 
+## Instalacja
 
-## 3. Setup & Installation
+Wymagany jest Python ≥ 3.11.
 
 ```bash
+python -m venv .venv
+# Windows:
+.venv\Scripts\activate
+# Linux / macOS:
+source .venv/bin/activate
+
 pip install -r requirements.txt
 ```
+
+---
+
+## Uruchomienie
+
+Notebooki uruchamiamy z katalogu głównego repozytorium (`proj1/`), w poniższej kolejności:
+
+1. **`eda_and_data_separation.ipynb`** — opcjonalny, bo gotowe podziały są już w `data/`.
+   Notebook wczytuje `zbiór_4.csv` z bieżącego katalogu, więc przed uruchomieniem zmień `DATA_PATH` na `data/zbiór_4.csv` (albo uruchom notebook z katalogu `data/`). Notebook nie nadpisuje plików w `data/`, tylko odtwarza analizę i podział (`random_state=42`).
+2. **`interpretable_model.ipynb`** — wczytuje `data/development_set.csv` i `data/test_holdout_set.csv`.
+3. **`black_box_analysis.ipynb`** — wczytuje te same zbiory. W części porównawczej korzysta z plików w `artifacts/` (tworzy się po kroku 2), więc **musi być uruchomiony po kroku 2**. Strojenie (`RandomizedSearchCV`, 50 × 4 dopasowań) trwa kilka minut.
+
+Przykład uruchomienia bez interfejsu:
+
+```bash
+jupyter nbconvert --to notebook --execute --inplace interpretable_model.ipynb
+jupyter nbconvert --to notebook --execute --inplace black_box_analysis.ipynb
+```
+
 
